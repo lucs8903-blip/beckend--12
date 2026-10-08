@@ -1,13 +1,12 @@
 import { Router } from 'express';
+import { AuthController } from '../controllers/auth.controller';
+import { authenticate } from '../middlewares/auth.middleware';
 
 const authRoutes = Router();
+const authController = new AuthController();
 
-authRoutes.post('/register', (req, res) => {
-  return res.json({ message: 'Rota de registro OK' });
-});
-
-authRoutes.post('/login', (req, res) => {
-  return res.json({ message: 'Rota de login OK' });
-});
+authRoutes.post('/register', authController.register);
+authRoutes.post('/login', authController.login);
+authRoutes.get('/me', authenticate, authController.me);
 
 export { authRoutes };

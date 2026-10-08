@@ -1,29 +1,35 @@
-import { AuthService, LoginInput } from "@/services/auth.service";
-import { NextFunction, Request, Response } from "express";
+import { LoginInput, AuthService, RegisterInput } from '../services/auth.service';
+import { Request, Response } from 'express';
 
 export class AuthController {
-  private authService: AuthService;
+  private authService = new AuthService();
 
-  constructor() {
-    this.authService = new AuthService();
-  }
+  public register = async (req: Request, res: Response): Promise<void> => {
+    try {
+      const result = await this.authService.register(req.body as RegisterInput);
+      res.status(201).json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Não foi possível cadastrar o usuário';
+      res.status(message === 'E-mail já cadastrado' ? 409 : 400).json({ message });
+    }
+  };
 
   public login = async (req: Request, res: Response): Promise<void> => {
     try {
-      const { email, password }  = req.body as LoginInput;
-      const { token, user } = await this.authService.login({ email, password });
-      res.json({ token, user });
+      const result = await this.authService.login(req.body as LoginInput);
+      res.json(result);
     } catch (error) {
-      res.status(401).json(error);
+      const message = error instanceof Error ? error.message : 'Não foi possível autenticar';
+      res.status(401).json({ message });
     }
   };
 
   public me = async (req: Request, res: Response): Promise<void> => {
     try {
-      const user = await this.authService.me(req.user!.id);
-      res.json(user);
+      res.json(await this.authService.me(req.user!.id));
     } catch (error) {
-      res.status(404).json(error);
+      const message = error instanceof Error ? error.message : 'Usuário não encontrado';
+      res.status(404).json({ message });
     }
-  }
+  };
 }

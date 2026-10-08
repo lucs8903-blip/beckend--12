@@ -1,58 +1,54 @@
-import { z } from "zod";
-import prisma from '@/lib/prisma';
-import { Prisma } from "@prisma/client";
-import { comparePasswords, hashPassword } from "@/utils/password";
-import { toAuthUser } from "@/utils/user.mapper";
-import { signToken } from "@/utils/jwt";
-import { User } from "./user.service";
+import { Role } from '@prisma/client';
+import { z } from 'zod';
+import prisma from '../lib/prisma';
+import { comparePasswords, hashPassword } from '../utils/password';
+import { toAuthUser, toPublicUser } from '../utils/user.mapper';
+import { signToken } from '../utils/jwt';
 
 export const loginSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters long"),
+  email: z.string().email('E-mail inválido'),
+  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
 });
 
-export const changePasswordSchema = z.object({
-  oldPassword: z.string().min(6, "Old password must be at least 6 characters long"),
-  newPassword: z.string().min(6, "New password must be at least 6 characters long"),
+export const registerSchema = z.object({
+  name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
+  email: z.string().email('E-mail inválido'),
+  password: z.string().min(6, 'A senha deve ter pelo menos 6 caracteres'),
+  role: z.enum([Role.STUDENT, Role.TEACHER]).default(Role.STUDENT),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type RegisterInput = z.infer<typeof registerSchema>;
 
 export class AuthService {
-  public async login(input: LoginInput): Promise<{ token: string; user: any }> {
-    
-    const user = await prisma.user.findUnique({
-        include: { roles: true },
-        where: { email: input.email },
+  public async register(input: RegisterInput) {
+    const data = registerSchema.parse(input);
+    const existingUser = await prisma.user.findUnique({ where: { email: data.email } });
+    if (existingUser) throw new Error('E-mail já cadastrado');
+
+    const user = await prisma.user.create({
+      data: {
+        name: data.name,
+        email: data.email,
+        password: await hashPassword(data.password),
+        role: data.role,
+      },
     });
-
-    if (!user) {
-      throw new Error("Invalid email or password");
-    }
-
-    const isPasswordValid = await comparePasswords(input.password, user.password);
-    console.log("isPasswordValid:", isPasswordValid); // Log the result
-    if (!isPasswordValid) {
-      throw new Error("Invalid email or password");
-    }
-
-    const authUser = toAuthUser(user);
-    const token = signToken(authUser);
-
-    return { token, user };
+    return { token: signToken(toAuthUser(user)), user: toPublicUser(user) };
   }
 
-  public async me(userId: string): Promise<User | null> {
-    const user = await prisma.user.findUnique({
-      include: { roles: true },
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new Error("User not found");
+  public async login(input: LoginInput) {
+    const credentials = loginSchema.parse(input);
+    const user = await prisma.user.findUnique({ where: { email: credentials.email } });
+    if (!user || !(await comparePasswords(credentials.password, user.password))) {
+      throw new Error('E-mail ou senha inválidos');
     }
+    return { token: signToken(toAuthUser(user)), user: toPublicUser(user) };
+  }
 
-    return user;
+  public async me(userId: string) {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new Error('Usuário não encontrado');
+    return toPublicUser(user);
   }
 }

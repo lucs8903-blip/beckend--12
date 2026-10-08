@@ -1,19 +1,19 @@
 export enum UserRole {
   ADMIN = 'ADMIN',
-  USER = 'USER',
-  GUEST = 'GUEST',
+  TEACHER = 'TEACHER',
+  STUDENT = 'STUDENT',
 }
 
 export const USER_ROLE_VALUES = Object.values(UserRole) as [
-    UserRole.ADMIN,
-    ...UserRole[]
+  UserRole,
+  ...UserRole[],
 ];
 
 export type AuthUser = {
   id: string;
   username: string;
   email: string;
-  roles: UserRole[];
+  role: UserRole;
 };
 
 declare global {
@@ -35,18 +35,13 @@ export class AppError extends Error {
   }
 }
 
-export function hasRole(
-    user: Pick<AuthUser, 'roles'> | undefined, 
-    role: UserRole
-): boolean {
-  return Boolean(user?.roles?.includes(role));
+export function hasRole(user: Pick<AuthUser, 'role'> | undefined, role: UserRole): boolean {
+  return user?.role === role;
 }
 
 export function hasAnyRole(
-    user: Pick<AuthUser, 'roles'> | undefined, 
-    roles: UserRole[]
+  user: Pick<AuthUser, 'role'> | undefined,
+  roles: UserRole[],
 ): boolean {
-  if (!user?.roles?.length) return false;
-  if (roles.length === 0) return true;
-  return roles.some(role => user.roles.includes(role));
+  return roles.length === 0 || Boolean(user && roles.includes(user.role));
 }

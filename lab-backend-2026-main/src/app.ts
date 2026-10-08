@@ -1,5 +1,6 @@
-import express from 'express';
+﻿import express from 'express';
 import cors from 'cors';
+import path from 'path';
 import routes from './routes';
 
 const app = express();
@@ -9,6 +10,7 @@ app.set('query parser', 'extended');
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
 
 app.use('/api', routes);
 
